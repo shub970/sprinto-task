@@ -7,26 +7,25 @@ For this exercise, imagine that you are working in a small team that is building
 
 1.  Priorities
     1.  Transactional capabilities
-        ```
-          1. Only one policy version should be active at any given time
-          2.  Ack requests for a new policy version on approval
-          3.  New policy addition to a staff role triggering Ack requests
-        ```
-    2.  Availability
-        ```
-          1.	For auditors to view the info
-          2.	For the customer (the company) to view the compliance gaps
-        ```
-    
+	```
+		1. Only one policy version should be active at any given time
+		2. Ack requests for a new policy version on approval
+		3. New policy addition to a staff role triggering Ack requests
+	```
 
-4.  Requirements are on extending the functionality (increasing complex queries) while the data is mostly structured
+    2.  Availability
+	```
+		1. For auditors to view the info
+		2. For the customer (the company) to view the compliance gaps
+	```
+
+2.  Requirements are on extending the functionality (increasing complex queries) while the data is mostly structured
    
 **This indicates the use of a SQL database - ensures Consistency and Availability (CAP Theorem)**
 
 3.  Callouts
-    ```
-    1. No context of the compliance framework is used (to reduce complexity)
-    ```
+
+			1. No context of the compliance framework is used (to reduce complexity)
 
 ## DB Schema
 
@@ -129,23 +128,23 @@ Here are the details of the business requirement:
     
 
 13.  When policy is modified, there is no hard and fast requirement for employees who acknowledged earlier to re-acknowledge. However, our data model should be able to handle this scenario if it comes up. Our customers should be able to request an acknowledgement only for the policies that were changed and not other policies.
-		```
+		````
 		1. If a policy is modified => a new policy version is created.
 		2. Whether or not to trigger Acknowledge_Requests can be controlled by a flag.
-		```
+		````
 14.  We should be able to distinguish whether a policy acknowledgement is happening as a part of a periodic exercise or as part of a new joining. Apart from these 2 events, customers should be able to trigger an acknowledgement from selected employees manually. It is preferable if our data model can track this type of acknowledgement as well.
-		```
+		````
 		1.  Policy_Acknowlegements with created_at == updated_at, are the ones created for newly joined employees, rest are periodic ones
 		    
 		2.  To trigger a manual Ack, expose a function to create Acknowledgement_Requests for the selected employees based on the active version of the policy type.
 		    
 		3.  acknowledgement_type field tracks whether the ack was auto or manual
-		``` 
+		````
 
 15.  The set of policies to be acknowledged by different types of employees is different. For example, an HR employee may have to acknowledge only 3 policies while an engineering employee needs to acknowledge 15 policies. The list of policies to be acknowledged by different roles should be configurable.
-	    ```
+	    ````
 		 1. Handled in the Role_Policies table (Role_id to policy_id many to many mapping)
-	    ```
+	    ````
 
   
 
