@@ -8,24 +8,28 @@ For this exercise, imagine that you are working in a small team that is building
 1.  Priorities
     1.  Transactional capabilities
 	```
-		1. Only one policy version should be active at any given time
-		2. Ack requests for a new policy version on approval
-		3. New policy addition to a staff role triggering Ack requests
+		1.  Only one policy version should be active at any given time
+		2.  Ack requests for a new policy version on approval
+		3.  New policy addition to a staff role triggering Ack requests
 	```
 
     2.  Availability
 	```
-		1. For auditors to view the info
-		2. For the customer (the company) to view the compliance gaps
+	    1.	 For auditors to view the info
+	    2.	 For the customer (the company) to view the compliance gaps
 	```
 
 2.  Requirements are on extending the functionality (increasing complex queries) while the data is mostly structured
    
-**This indicates the use of a SQL database - ensures Consistency and Availability (CAP Theorem)**
+**This indicates using a SQL database for critical parts of the system. However, I would prefer to use NoSQL for some of the entities, as explained below**
 
 3.  Callouts
 
 			1. No context of the compliance framework is used (to reduce complexity)
+
+## Open Questions
+1. Employee role to policies mapping is universal or changes per company?
+	1.  Assuming its universal
 
 ## DB Schema
 
@@ -37,32 +41,32 @@ Here are the details of the business requirement:
 
 1.  A company needs multiple types of policies to become SOC 2 compliant (Infosec policy, acceptable use policy, cryptographic policy, etc.)
 	```
-	1. Create policy_types for different policies under SOC 2
+	1. Create policy_types for different policies under SOC 2 (NoSQL schema to allow for extension of attributes)
 	```
   
 2.  To make our customers’ lives easy, Sprinto comes built-in with a set of default policy templates - one for each type of policy. The concept of a policy template itself needn’t be visible to our customers and is useful only for us to generate these policies for them if they so choose.
 	```
-	1. Create a Policy_Template for each policy type 
+	1. Create a Policy_Template for each policy type (NoSQL schema because policy wordings may be large enough - SQL storage costs may get significantly higher with time)
  
 	2. Can incrementally create more templates against a type with a version (only one is active at a time for a given type)
 
-	3. Create Default_Configuration key values for a template_id
+	3. Create Default_Configuration key values for a template_id (again, NoSQL for extendibility)
 	```
 
 3.  Sometimes, customers don’t want to use the policy that is generated from our templates and would like to use their own. Our design should be able to accommodate this requirement.
 	```
-	1. Create a new policy with template_id as NULL
+	1. Create a new policy with template_id as NULL. A Policy's schema is kept SQL because a policy is involved in certain transactions across multi-step processes.
 	```
   
 4.  When a new policy is created, it needs to be approved by a designated person (let's say the CTO of the company).
 	```
 	1.  A new policy is created with is_active = false and is_pending_approval = true and status = “pending_approval”
 	    
-	2.  template_id is chosen based on the user input and Policy_Configurations are defined
+	2.  template_id is chosen based on the user input and Policy_Configurations are created
 	    
-	3.  From Employees, find the employee with designation = “CTO” and trigger an approval request with details - type_id, template_id (if available), re_ack_in_days, next_review_date
+	3.  From Employees, find the employee with designation = “CTO” and trigger a policy approval request with details - type_id, template_id (if available), re_ack_in_days, next_review_date
 
-	4.  On approval, the current active policy is set is_active = false and the new policy is updated with is_active = true, is_pending_approval = false, policy_content from either the chosen template+configurations or custom wording
+	4.  On approval, the current active policy is set is_active = false and the new policy is updated with is_active = true, is_pending_approval = false, policy_content from either the chosen template+configurations or custom content
 	```
 	
 5.  An approved policy needs to be acknowledged by all employees to the effect that they have read and agree to abide by the policies. Acknowledgement is a simple “I agree to abide by the policies” checkbox.
@@ -82,7 +86,7 @@ Here are the details of the business requirement:
 
 7.  For audit reasons, we need to keep information of all the past acknowledgements of every employee.
     ```
-	1.  Stored in the Policy_Acknowledgements table
+	1.  Stored in the Policy_Acknowledgements table, NoSQL schema for high scalability
     ```
 
 8.  We need to know how our data model will support the ability to request acknowledgements from new employees when they join, and periodically thereafter (ex: annually). We also need to be able to track whether the acknowledgements are completed within 30 days from the time of request. We might have to raise the right kind of alerts if acknowledgements are not happening in time - like escalate this to a CXO in the company.
@@ -98,15 +102,15 @@ Here are the details of the business requirement:
     
 	2.  Show prompt to the customer (in the dashboard) and wait for their consent
     
-	3.  On consent, set is_active_version = false for the template which is currently active on that type and set is_active_version = true for this new template (transaction)
+	3.  On consent (or approval), set is_active_version = false for the template which is currently active on that type and set is_active_version = true for this new template (transaction)
     
 	4.  Now, any new policy gets created with this active template version of that policy type
     ```
 
 10.  Some policies have specific configurations that are given by the customer at the time of creating the policy. For example, a vulnerability management policy will have SLAs for fixing vulnerabilities. This is an input that we need to receive from the customer when we generate the policy.
-		````
+```		
 		1.  Such inputs can directly be inserted into the Policy_configurations table against the newly created Policy. (The keys needed for a particular Policy template can be fetched from Default_Configurations table)
-    
+		
 		2.  When this configuration is changed, the policy needs to be approved before the new policy takes effect. In the meantime, the previous policy should be functional i.e. if a new employee joins, they should be signing the version that is currently active.
 
 		3. Policy_Configuration is versioned based on the policy_version. If a new configuration is to be created, a new config_id needs to be generated and the last policy_version is already in approved status. As policy_version has to be unique for a given policy_id, a policy_version needs to be created
@@ -114,37 +118,37 @@ Here are the details of the business requirement:
 		4.  Create a new policy version from the currently active version and add a new Policy_Configuration for the new version. The new policy version is in is_pending_approval = true state. So approval gets triggered
     
 		5.  On approval, the current version is set is_active = false and the new version is set to is_active = true with status = “approved” (transaction)
-		````
+```
 
 11.  Once the new policy is approved that should be the one used for any new hires joining thereafter.
-		````
+```
 		1.  Already handled above as the active policy is picked against a given policy type
-		````
+```
 
 12.  The same logic holds for periodic policy acknowledgements as well.
-		````
+```
 		1.  Handled
-		````
+```
     
 
 13.  When policy is modified, there is no hard and fast requirement for employees who acknowledged earlier to re-acknowledge. However, our data model should be able to handle this scenario if it comes up. Our customers should be able to request an acknowledgement only for the policies that were changed and not other policies.
-		````
+```
 		1. If a policy is modified => a new policy version is created.
 		2. Whether or not to trigger Acknowledge_Requests can be controlled by a flag.
-		````
+```
 14.  We should be able to distinguish whether a policy acknowledgement is happening as a part of a periodic exercise or as part of a new joining. Apart from these 2 events, customers should be able to trigger an acknowledgement from selected employees manually. It is preferable if our data model can track this type of acknowledgement as well.
-		````
+```
 		1.  Policy_Acknowlegements with created_at == updated_at, are the ones created for newly joined employees, rest are periodic ones
 		    
 		2.  To trigger a manual Ack, expose a function to create Acknowledgement_Requests for the selected employees based on the active version of the policy type.
 		    
 		3.  acknowledgement_type field tracks whether the ack was auto or manual
-		````
+```
 
 15.  The set of policies to be acknowledged by different types of employees is different. For example, an HR employee may have to acknowledge only 3 policies while an engineering employee needs to acknowledge 15 policies. The list of policies to be acknowledged by different roles should be configurable.
-	    ````
+   ```
 		 1. Handled in the Role_Policies table (Role_id to policy_id many to many mapping)
-	    ````
+   ```
 
   
 
